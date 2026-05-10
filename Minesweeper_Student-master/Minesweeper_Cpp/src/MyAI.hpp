@@ -41,7 +41,19 @@ public:
     // YOUR CODE BEGINS
     // ======================================================================
 
+private:
+    // stores if the tile covered or flagged
+    struct state
+    {
+        bool covered;
+        bool flagged;
+    };
 
+    // tells us the state of all tiles on the board
+    vector<vector<state>> tileStates;
+    // tells us where to look next
+    int nextX;
+    int nextY;
 
     // ======================================================================
     // YOUR CODE ENDS
