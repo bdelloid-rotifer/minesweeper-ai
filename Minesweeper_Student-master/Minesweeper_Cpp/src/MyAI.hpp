@@ -42,11 +42,12 @@ public:
     // ======================================================================
 
 private:
-    // stores if the tile covered or flagged
+    // stores if the tile is covered, flagged, and what number it has
     struct state
     {
         bool covered;
         bool flagged;
+        int number;
     };
 
     // tells us the state of all tiles on the board
@@ -54,6 +55,11 @@ private:
     // tells us where to look next
     int nextX;
     int nextY;
+    // remembers the last tile we tried to uncover
+    int lastX;
+    int lastY;
+    // stores tiles we think are safe to uncover next
+    vector<pair<int, int>> safeMoves;
 
     // ======================================================================
     // YOUR CODE ENDS
