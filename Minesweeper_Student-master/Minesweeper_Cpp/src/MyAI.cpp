@@ -25,6 +25,18 @@ MyAI::MyAI ( int _rowDimension, int _colDimension, int _totalMines, int _agentX,
     // YOUR CODE BEGINS
     // ======================================================================
 
+    rowDimension = _rowDimension;
+    colDimension = _colDimension;
+    totalMines = _totalMines;
+    agentX = _agentX;
+    agentY = _agentY;
+
+    state initialState = {true, false};
+    tileStates = vector<vector<state>>(colDimension, vector<state>(rowDimension, initialState));
+    tileStates[agentX][agentY].covered = false;
+    nextX = 0;
+    nextY = 0;
+
     // ======================================================================
     // YOUR CODE ENDS
     // ======================================================================
@@ -86,7 +98,36 @@ Agent::Action MyAI::getAction( int number )
     */
 
 
-    return {LEAVE,-1,-1};
+    while (nextY < rowDimension)
+    {
+        // check if tile covered and not flagged (for obvious reasons), if it fails, then move cursor forward
+        if (tileStates[nextX][nextY].covered && !tileStates[nextX][nextY].flagged)
+        {
+            int x = nextX;
+            int y = nextY;
+
+            tileStates[x][y].covered = false;
+
+            ++nextX;
+            if (nextX == colDimension)
+            {
+                nextX = 0;
+                ++nextY;
+            }
+
+            return {UNCOVER, x, y};
+        }
+
+        ++nextX;
+        // we reached the end of the row, head to beginning of next row
+        if (nextX == colDimension)
+        {
+            nextX = 0;
+            ++nextY;
+        }
+    }
+
+    return {LEAVE, -1, -1};
     // ======================================================================
     // YOUR CODE ENDS
     // ======================================================================
