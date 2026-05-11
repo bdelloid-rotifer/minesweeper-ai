@@ -36,6 +36,8 @@ MyAI::MyAI ( int _rowDimension, int _colDimension, int _totalMines, int _agentX,
     tileStates[agentX][agentY].covered = false;
     nextX = 0;
     nextY = 0;
+    lastX = agentX;
+    lastY = agentY;
 
     // ======================================================================
     // YOUR CODE ENDS
@@ -98,6 +100,32 @@ Agent::Action MyAI::getAction( int number )
     */
 
 
+    // if the last tile was 0, its neighbors should be safe
+    if (number == 0)
+    {
+        for (int x = lastX - 1; x <= lastX + 1; ++x)
+        {
+            for (int y = lastY - 1; y <= lastY + 1; ++y)
+            {
+                if (x >= 0 && x < colDimension && y >= 0 && y < rowDimension && tileStates[x][y].covered && !tileStates[x][y].flagged)
+                {
+                    tileStates[x][y].covered = false;
+                    safeMoves.push_back({x, y});
+                }
+            }
+        }
+    }
+
+    // try safe moves before going back to dumb left-to-right searching
+    if (!safeMoves.empty())
+    {
+        pair<int, int> move = safeMoves.back();
+        safeMoves.pop_back();
+        lastX = move.first;
+        lastY = move.second;
+        return {UNCOVER, lastX, lastY};
+    }
+
     while (nextY < rowDimension)
     {
         // check if tile covered and not flagged (for obvious reasons), if it fails, then move cursor forward
@@ -107,6 +135,8 @@ Agent::Action MyAI::getAction( int number )
             int y = nextY;
 
             tileStates[x][y].covered = false;
+            lastX = x;
+            lastY = y;
 
             ++nextX;
             if (nextX == colDimension)

@@ -54,6 +54,11 @@ private:
     // tells us where to look next
     int nextX;
     int nextY;
+    // remembers the last tile we tried to uncover
+    int lastX;
+    int lastY;
+    // stores tiles we think are safe to uncover next
+    vector<pair<int, int>> safeMoves;
 
     // ======================================================================
     // YOUR CODE ENDS
