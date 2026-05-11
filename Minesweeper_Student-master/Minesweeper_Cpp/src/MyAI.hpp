@@ -42,11 +42,12 @@ public:
     // ======================================================================
 
 private:
-    // stores if the tile covered or flagged
+    // stores if the tile is covered, flagged, and what number it has
     struct state
     {
         bool covered;
         bool flagged;
+        int number;
     };
 
     // tells us the state of all tiles on the board
