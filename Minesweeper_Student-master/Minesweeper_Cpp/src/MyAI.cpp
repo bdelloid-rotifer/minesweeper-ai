@@ -39,6 +39,8 @@ MyAI::MyAI ( int _rowDimension, int _colDimension, int _totalMines, int _agentX,
     lastX = agentX;
     lastY = agentY;
 
+    coveredLeft = (colDimension*rowDimension) -1;
+
     // ======================================================================
     // YOUR CODE ENDS
     // ======================================================================
@@ -87,6 +89,8 @@ Agent::Action MyAI::getAction( int number )
     3. check effective label stuff (all stuff next to it is mines and flag them all or all stuff next to it is already flagged and clear it all)
     4. BWAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     5. left to right spam until we blow up or miraculously survive
+
+    - C. Yang
     */
     /* TIMEOUT LOGIC (from slides)
     
@@ -108,9 +112,16 @@ Agent::Action MyAI::getAction( int number )
     
     */
 
+    /*
+    24 May 2026 - A. Lay
+    DRAFT AI UPDATE:
+    - Added a frontier to keep track of cells that have more uncovered neighbors than flagged neighbors
+    - Added a probability function to work with the frontier and make an informed guess
+    */
+
 
     tileStates[lastX][lastY].number = number;
-
+    frontier.clear();
     // use any safe move we already found first
     if (!safeMoves.empty())
     {
@@ -118,6 +129,7 @@ Agent::Action MyAI::getAction( int number )
         safeMoves.pop_back();
         lastX = move.first;
         lastY = move.second;
+        --coveredLeft;
         return {UNCOVER, lastX, lastY};
     }
 
@@ -160,22 +172,38 @@ Agent::Action MyAI::getAction( int number )
                     for (pair<int, int> move : unknownNeighbors)
                     {
                         tileStates[move.first][move.second].flagged = true;
+                        ++flaggedCount;
                     }
+                }
+                else if (unknownNeighbors.size() > 0) // added for frontier implementation
+                {
+                  frontier.push_back({x, y}); 
                 }
             }
         }
     }
 
-    // try new safe moves before going back to dumb left-to-right searching
+    // try new safe moves and local probability logic before going back to dumb left-to-right searching]
     if (!safeMoves.empty())
     {
         pair<int, int> move = safeMoves.back();
         safeMoves.pop_back();
         lastX = move.first;
         lastY = move.second;
+        --coveredLeft;
         return {UNCOVER, lastX, lastY};
     }
 
+    // try using probability and frontier logic
+    pair<int, int> leastRisky = findLeastRisky();
+    if (leastRisky.first != -1) {
+      lastX = leastRisky.first;
+      lastY = leastRisky.second;
+      tileStates[lastX][lastY].covered = false;
+      --coveredLeft;
+      return{UNCOVER, leastRisky.first, leastRisky.second};
+    }
+    // else revert back to dumb logic
     while (nextY < rowDimension)
     {
         // check if tile covered and not flagged (for obvious reasons), if it fails, then move cursor forward
@@ -194,7 +222,7 @@ Agent::Action MyAI::getAction( int number )
                 nextX = 0;
                 ++nextY;
             }
-
+            --coveredLeft;
             return {UNCOVER, x, y};
         }
 
@@ -206,6 +234,9 @@ Agent::Action MyAI::getAction( int number )
             ++nextY;
         }
     }
+   
+
+    
 
     return {LEAVE, -1, -1};
     // ======================================================================
@@ -217,9 +248,72 @@ Agent::Action MyAI::getAction( int number )
 
 // ======================================================================
 // YOUR CODE BEGINS
-// ======================================================================
 
+std::pair<int, int> MyAI::findLeastRisky() {
 
+   // safest determined by least density, calculated by 
+   // (number at cell - flagged neighbors)/total covered neighbors.
+
+   if (frontier.size() == 0) return{-1, -1};
+   
+   double board_density = (double) (totalMines - flaggedCount) / (coveredLeft); // used to track density of remaining unflagged mines
+   double minimum_risk{10.0};
+   std::pair<int, int> safest{-1, -1};
+
+   std::map<std::pair<int,int>, double> riskUncovered;
+
+   for (int c {}; c < colDimension; ++c) {
+      for (int r {}; r < rowDimension; ++r) {
+         if (tileStates[c][r].covered && !tileStates[c][r].flagged) {
+            riskUncovered[{c, r}] = board_density;
+         }
+      }
+   }
+
+   for (const auto& [x, y]: frontier) {
+      int flaggedNeighbors{0};
+      int coveredNeighbors{0};
+      std::vector<pair<int, int>> temp;
+      for (int nx = x - 1; nx <= x + 1; ++nx)
+      {
+         for (int ny = y - 1; ny <= y + 1; ++ny)
+         {
+            if (nx >= 0 && nx < colDimension && ny >= 0 && ny < rowDimension && !(nx == x && ny == y))
+            {
+               if (tileStates[nx][ny].flagged) {
+                  ++flaggedNeighbors;
+               }
+               else if (tileStates[nx][ny].covered) {
+                  ++coveredNeighbors;
+                  temp.push_back({nx, ny});
+               }
+            }
+
+         }
+         
+      }
+
+      if (coveredNeighbors > 0) {
+         double local_risk = (double)(tileStates[x][y].number - flaggedNeighbors) / coveredNeighbors;
+         for (const auto& tile: temp) {
+            if (riskUncovered.find(tile) == riskUncovered.end() || local_risk < riskUncovered[tile]) {
+               riskUncovered[tile] = local_risk;
+            }
+            
+         }
+      }
+
+   }
+
+   for (const auto& [tile, risk]: riskUncovered) {
+      if (risk < minimum_risk) {
+         minimum_risk = risk;
+         safest = tile;
+      }
+   }
+
+   return safest;
+}
 
 // ======================================================================
 // YOUR CODE ENDS

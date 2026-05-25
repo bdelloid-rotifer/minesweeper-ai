@@ -39,7 +39,9 @@ public:
 
     // ======================================================================
     // YOUR CODE BEGINS
-    // ======================================================================
+    // ======================================================================\
+
+    std::pair<int, int> findLeastRisky();
 
 private:
     // stores if the tile is covered, flagged, and what number it has
@@ -52,6 +54,8 @@ private:
 
     // tells us the state of all tiles on the board
     vector<vector<state>> tileStates;
+    // flagged count
+    int flaggedCount;
     // tells us where to look next
     int nextX;
     int nextY;
@@ -60,7 +64,11 @@ private:
     int lastY;
     // stores tiles we think are safe to uncover next
     vector<pair<int, int>> safeMoves;
+    // number of remaining covered tiles
+    int coveredLeft;
 
+    // stores coordinates of tiles that have more covered neighbors than flagged neighbors
+    std::vector<std::pair<int, int>> frontier;
     // ======================================================================
     // YOUR CODE ENDS
     // ======================================================================
