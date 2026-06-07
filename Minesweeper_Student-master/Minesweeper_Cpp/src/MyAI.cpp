@@ -270,7 +270,9 @@ std::pair<int, int> MyAI::findLeastRisky() {
       }
    }
 
-   for (const auto& [x, y]: frontier) {
+   for (const auto& tile: frontier) {
+      int x = tile.first;
+      int y = tile.second;
       int flaggedNeighbors{0};
       int coveredNeighbors{0};
       std::vector<pair<int, int>> temp;
@@ -305,7 +307,9 @@ std::pair<int, int> MyAI::findLeastRisky() {
 
    }
 
-   for (const auto& [tile, risk]: riskUncovered) {
+   for (const auto& entry: riskUncovered) {
+      const pair<int, int>& tile = entry.first;
+      double risk = entry.second;
       if (risk < minimum_risk) {
          minimum_risk = risk;
          safest = tile;
