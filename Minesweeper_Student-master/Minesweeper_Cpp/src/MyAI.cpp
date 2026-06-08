@@ -122,6 +122,7 @@ Agent::Action MyAI::getAction( int number )
 
     tileStates[lastX][lastY].number = number;
     frontier.clear();
+    constraints.clear();
     // use any safe move we already found first
     if (!safeMoves.empty())
     {
@@ -167,7 +168,7 @@ Agent::Action MyAI::getAction( int number )
                         safeMoves.push_back(move);
                     }
                 }
-                else if (effectiveLabel == unknownNeighbors.size())
+                else if (effectiveLabel == unknownNeighbors.size() && !unknownNeighbors.empty())
                 {
                     for (pair<int, int> move : unknownNeighbors)
                     {
@@ -175,12 +176,90 @@ Agent::Action MyAI::getAction( int number )
                         ++flaggedCount;
                     }
                 }
-                else if (unknownNeighbors.size() > 0) // added for frontier implementation
+                else if (!unknownNeighbors.empty())
                 {
-                  frontier.push_back({x, y}); 
+                    constraints.push_back({x, y, effectiveLabel, unknownNeighbors});
+                    for (auto un: unknownNeighbors) {
+                        frontier.insert(un);
+                    }
                 }
             }
         }
+    }
+
+    // try the linear constraints
+
+    if (!frontier.empty() && !constraints.empty()) {
+
+        std::map<std::pair<int, int>, int> variablesOfIndices;
+        std::vector<std::pair<int, int>> indiciesOfVariables;
+
+        int index{0};
+        for (auto f: frontier) {
+            variablesOfIndices[f] = index++;
+            indiciesOfVariables.push_back(f);
+
+        }
+
+        // system of equations. 
+        // row is constraint, each column a covered tile with coefficients 1 for bordering a constraint or 0 for no. 
+        // augemented columm for effective label
+        std::vector<std::vector<double>> matrix_constraints(constraints.size(), std::vector<double>(indiciesOfVariables.size() + 1, 0.0));
+        for (int row{}; row < constraints.size(); ++row) {
+           for (const auto& c: constraints[row].neighborVariables) {
+                int column = variablesOfIndices[c];
+                matrix_constraints[row][column] = 1.0;
+           }
+           matrix_constraints[row][indiciesOfVariables.size()] = (double)constraints[row].effectiveLabelC;
+        }
+
+        // row reduction function
+        row_reduce(matrix_constraints);
+
+        // get solutions
+        for (int row{}; row < matrix_constraints.size(); ++row) {
+            double augmented = matrix_constraints[row].back();
+            std::vector<int> positives;
+            vector<int> negatives;
+
+            double sum {0.0};
+
+            for (int col{}; col < indiciesOfVariables.size(); ++col) {
+                if (matrix_constraints[row][col] > 1e-4) {
+                    positives.push_back(col);
+                    sum += matrix_constraints[row][col];
+                }
+                else if (matrix_constraints[row][col] < -1e-4) {
+                    negatives.push_back(col);
+                }
+            }
+
+            //must not have negative constraints
+            if (negatives.empty() && !positives.empty()) { 
+                // sum of positive values in this row = 0, tiles involved in this constraint must all be safe
+                if (std::abs(augmented) < 1e-4) {
+                    for (int p: positives) {
+                        std::pair<int, int> tile = indiciesOfVariables[p];
+                        if (tileStates[tile.first][tile.second].covered && !tileStates[tile.first][tile.second].flagged) {
+                            tileStates[tile.first][tile.second].covered = false;
+                            safeMoves.push_back(tile);
+                        }
+                    }
+                }
+                // else, if sum is the same as the augmented value, every tile in this constraint must be a mine
+                else if (std::abs(augmented - sum) < 1e-4) {
+                    for (int p: positives) {
+                        std::pair<int, int> tile = indiciesOfVariables[p];
+                        if (tileStates[tile.first][tile.second].covered && !tileStates[tile.first][tile.second].flagged) {
+                            tileStates[tile.first][tile.second].flagged = true;
+                            ++flaggedCount;
+                        }
+                    }
+                }
+            }
+        }
+
+
     }
 
     // try new safe moves and local probability logic before going back to dumb left-to-right searching]
@@ -249,6 +328,64 @@ Agent::Action MyAI::getAction( int number )
 // ======================================================================
 // YOUR CODE BEGINS
 
+void MyAI::row_reduce(std::vector<std::vector<double>>& matrix) {
+    if (matrix.size() == 0) return;
+    int n_rows = matrix.size();
+    int m_col = matrix[0].size();
+    int focus = 0;
+
+    for (int row{}; row < n_rows; ++row) {
+
+        if (focus >= m_col - 1) {
+            return;
+        }
+
+        int pivotRow = row;
+
+        while (focus < m_col - 1) {
+            double max = std::abs(matrix[row][focus]);
+            pivotRow = row;
+            for (int i{row+1}; i < n_rows; ++i) {
+                double temp = std::abs(matrix[i][focus]);
+                if (temp > max) {
+                    max = temp;
+                    pivotRow = i;
+                }
+            }
+            if (max > 1e-4) { 
+                break;
+            }
+            focus++; // next column
+        }
+        
+        if (focus >= m_col - 1) {
+            return;
+        }
+
+
+        if (row != pivotRow) {
+            std::swap(matrix[row], matrix[pivotRow]);
+        }
+        double leading_value = matrix[row][focus];
+        for (int c{focus}; c < m_col; ++c) {
+            matrix[row][c] /= leading_value;
+        }
+        for (int k{}; k < n_rows; ++k){
+            if (k != row) {
+                double leading_value_i = matrix[k][focus];
+                if (std::abs(leading_value_i) > 1e-4) {
+                    for (int j {focus}; j < m_col; ++j) {
+                        matrix[k][j] -= leading_value_i * matrix[row][j];
+                    }
+                }
+            }
+        }            
+        focus++;
+        
+
+    }
+}
+
 std::pair<int, int> MyAI::findLeastRisky() {
 
    // safest determined by least density, calculated by 
@@ -256,7 +393,10 @@ std::pair<int, int> MyAI::findLeastRisky() {
 
    if (frontier.size() == 0) return{-1, -1};
    
-   double board_density = (double) (totalMines - flaggedCount) / (coveredLeft); // used to track density of remaining unflagged mines
+   double board_density = 0.0; 
+   if (coveredLeft > 0) {
+        board_density = (double) (totalMines - flaggedCount) / (coveredLeft); // used to track density of remaining unflagged mines
+   }
    double minimum_risk{10.0};
    std::pair<int, int> safest{-1, -1};
 
@@ -270,12 +410,33 @@ std::pair<int, int> MyAI::findLeastRisky() {
       }
    }
 
+   std::set<std::pair<int, int>> visited;
+   for (const auto& c: constraints) {
+        int coveredNeighbors{static_cast<int>(c.neighborVariables.size())};
+        if (coveredNeighbors > 0) {
+            double local_risk = (double)(c.effectiveLabelC) / coveredNeighbors;
+            for (const auto& tile: c.neighborVariables) {
+                if (tileStates[tile.first][tile.second].covered || !tileStates[tile.first][tile.second].flagged) {
+                    if (visited.find(tile) == visited.end()) {
+                        riskUncovered[tile] = local_risk;
+                        visited.insert(tile);
+                    }
+                    else if (local_risk > riskUncovered[tile]) {
+                        riskUncovered[tile] = local_risk;
+                    }
+                }
+            }
+        }
+   }
+
+/*
    for (const auto& tile: frontier) {
       int x = tile.first;
       int y = tile.second;
       int flaggedNeighbors{0};
       int coveredNeighbors{0};
       std::vector<pair<int, int>> temp;
+
       for (int nx = x - 1; nx <= x + 1; ++nx)
       {
          for (int ny = y - 1; ny <= y + 1; ++ny)
@@ -294,7 +455,7 @@ std::pair<int, int> MyAI::findLeastRisky() {
          }
          
       }
-
+         
       if (coveredNeighbors > 0) {
          double local_risk = (double)(tileStates[x][y].number - flaggedNeighbors) / coveredNeighbors;
          for (const auto& tile: temp) {
@@ -306,7 +467,7 @@ std::pair<int, int> MyAI::findLeastRisky() {
       }
 
    }
-
+*/
    for (const auto& entry: riskUncovered) {
       const pair<int, int>& tile = entry.first;
       double risk = entry.second;

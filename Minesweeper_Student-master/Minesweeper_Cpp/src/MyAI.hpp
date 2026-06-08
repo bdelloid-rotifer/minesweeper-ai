@@ -42,6 +42,7 @@ public:
     // ======================================================================\
 
     std::pair<int, int> findLeastRisky();
+    void row_reduce(std::vector<std::vector<double>>& matrix);
 
 private:
     // stores if the tile is covered, flagged, and what number it has
@@ -50,6 +51,12 @@ private:
         bool covered;
         bool flagged;
         int number;
+    };
+
+    struct constraint {
+        int x, y;
+        int effectiveLabelC;
+        std::vector<std::pair<int, int>> neighborVariables;
     };
 
     // tells us the state of all tiles on the board
@@ -68,7 +75,8 @@ private:
     int coveredLeft;
 
     // stores coordinates of tiles that have more covered neighbors than flagged neighbors
-    std::vector<std::pair<int, int>> frontier;
+    std::set<pair<int, int>> frontier;
+    std::vector<constraint> constraints;
     // ======================================================================
     // YOUR CODE ENDS
     // ======================================================================
