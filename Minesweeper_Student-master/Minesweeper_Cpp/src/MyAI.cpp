@@ -38,6 +38,8 @@ MyAI::MyAI ( int _rowDimension, int _colDimension, int _totalMines, int _agentX,
     nextY = 0;
     lastX = agentX;
     lastY = agentY;
+    flaggedCount = 0;
+    startTime = std::chrono::steady_clock::now();
 
     coveredLeft = (colDimension*rowDimension) -1;
 
@@ -194,7 +196,7 @@ Agent::Action MyAI::getAction( int number )
 
     // try the linear constraints
 
-    if (!frontier.empty() && !constraints.empty()) {
+    if (!almostOutOfTime() && !frontier.empty() && !constraints.empty()) {
 
         std::map<std::pair<int, int>, int> variablesOfIndices;
         std::vector<std::pair<int, int>> indiciesOfVariables;
@@ -389,6 +391,11 @@ void MyAI::row_reduce(std::vector<std::vector<double>>& matrix) {
         
 
     }
+}
+
+bool MyAI::almostOutOfTime() {
+    std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - startTime;
+    return elapsed.count() > 285.0;
 }
 
 std::pair<int, int> MyAI::findLeastRisky() {

@@ -26,6 +26,7 @@
 #include <map>
 #include <set>
 #include <algorithm>
+#include <chrono>
 
 using namespace std;
 
@@ -43,6 +44,7 @@ public:
 
     std::pair<int, int> findLeastRisky();
     void row_reduce(std::vector<std::vector<double>>& matrix);
+    bool almostOutOfTime();
 
 private:
     // stores if the tile is covered, flagged, and what number it has
@@ -77,6 +79,8 @@ private:
     // stores coordinates of tiles that have more covered neighbors than flagged neighbors
     std::set<pair<int, int>> frontier;
     std::vector<constraint> constraints;
+    // panic button so we do not timeout
+    std::chrono::steady_clock::time_point startTime;
     // ======================================================================
     // YOUR CODE ENDS
     // ======================================================================
