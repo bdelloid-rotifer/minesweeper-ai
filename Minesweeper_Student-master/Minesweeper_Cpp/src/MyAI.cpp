@@ -119,6 +119,11 @@ Agent::Action MyAI::getAction( int number )
     - Added a probability function to work with the frontier and make an informed guess
     */
 
+    /*
+    8 Jun 2026 - A. Lay
+    Linear constraint satisfaction algorithm based on matrix representation and linear algebra. Old methods are fallback.
+    */
+
 
     tileStates[lastX][lastY].number = number;
     frontier.clear();
@@ -429,45 +434,6 @@ std::pair<int, int> MyAI::findLeastRisky() {
         }
    }
 
-/*
-   for (const auto& tile: frontier) {
-      int x = tile.first;
-      int y = tile.second;
-      int flaggedNeighbors{0};
-      int coveredNeighbors{0};
-      std::vector<pair<int, int>> temp;
-
-      for (int nx = x - 1; nx <= x + 1; ++nx)
-      {
-         for (int ny = y - 1; ny <= y + 1; ++ny)
-         {
-            if (nx >= 0 && nx < colDimension && ny >= 0 && ny < rowDimension && !(nx == x && ny == y))
-            {
-               if (tileStates[nx][ny].flagged) {
-                  ++flaggedNeighbors;
-               }
-               else if (tileStates[nx][ny].covered) {
-                  ++coveredNeighbors;
-                  temp.push_back({nx, ny});
-               }
-            }
-
-         }
-         
-      }
-         
-      if (coveredNeighbors > 0) {
-         double local_risk = (double)(tileStates[x][y].number - flaggedNeighbors) / coveredNeighbors;
-         for (const auto& tile: temp) {
-            if (riskUncovered.find(tile) == riskUncovered.end() || local_risk < riskUncovered[tile]) {
-               riskUncovered[tile] = local_risk;
-            }
-            
-         }
-      }
-
-   }
-*/
    for (const auto& entry: riskUncovered) {
       const pair<int, int>& tile = entry.first;
       double risk = entry.second;
