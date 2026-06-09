@@ -27,6 +27,7 @@
 #include <set>
 #include <algorithm>
 #include <chrono>
+#include <functional>
 
 using namespace std;
 
@@ -43,6 +44,7 @@ public:
     // ======================================================================\
 
     std::pair<int, int> findLeastRisky();
+    std::pair<int, int> tryModelChecking();
     void row_reduce(std::vector<std::vector<double>>& matrix);
     bool almostOutOfTime();
 
@@ -79,6 +81,8 @@ private:
     // stores coordinates of tiles that have more covered neighbors than flagged neighbors
     std::set<pair<int, int>> frontier;
     std::vector<constraint> constraints;
+    // model checking found something but maybe not something we can click yet
+    bool modelCheckingChanged;
     // panic button so we do not timeout
     std::chrono::steady_clock::time_point startTime;
     // ======================================================================
